@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CF2KGAMER TAMBAYAN PH| V14.7 Stealth</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root { --bg: #050505; --card: #0d0d0f; --accent: #eab308; }
+        body { background: var(--bg); color: #fff; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .premium-card { background: var(--card); border: 1px solid rgba(255,255,255,0.05); transition: all 0.3s ease; }
+        .pending-glow { border: 1px solid rgba(234, 179, 8, 0.4) !important; animation: pulse 2s infinite; }
+        .reseller-border { border-left: 4px solid #3b82f6 !important; }
+        @keyframes pulse { 0%, 100% { border-color: rgba(234, 179, 8, 0.2); } 50% { border-color: rgba(234, 179, 8, 0.5); } }
+        #context-menu, #confirm-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.94); z-index: 1000; display: none; align-items: flex-end; justify-content: center; backdrop-filter: blur(20px); }
+        #context-menu.active, #confirm-modal.active { display: flex; }
+        .menu-sheet { width: 100%; max-width: 460px; background: #080808; border-radius: 40px 40px 0 0; padding: 28px; border: 1px solid rgba(255,255,255,0.1); animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .btn-logic { transition: all 0.2s ease; border: 1px solid rgba(255,255,255,0.05); }
+        .selected-direct { background: #fff !important; color: #000 !important; font-weight: 800; transform: scale(1.02); }
+        .selected-resale { background: #3b82f6 !important; color: #fff !important; font-weight: 800; transform: scale(1.02); }
+        .btn-approved { background: #22c55e !important; color: #000 !important; font-weight: 800; border-color: #22c55e !important; }
+        
+        /* Toast Notification Style */
+        #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #22c55e; color: #000; padding: 12px 24px; border-radius: 15px; font-weight: 800; font-size: 12px; z-index: 2000; transition: transform 0.4s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
+        #toast.show { transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body class="pb-24">
+
+    <div id="toast">ACTION SUCCESSFUL</div>
+
+    <div id="confirm-modal">
+        <div class="menu-sheet !rounded-[40px] mb-10 !max-w-[350px] space-y-6 text-center">
+            <div id="confirm-icon" class="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto">
+                <i data-lucide="alert-triangle"></i>
+            </div>
+            <div>
+                <h3 id="confirm-title" class="text-lg font-black uppercase">Confirm Reset?</h3>
+                <p id="confirm-desc" class="text-xs text-zinc-500 mt-2 leading-relaxed">This will clear all registered devices for this user.</p>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="hideConfirm()" class="flex-1 py-4 bg-zinc-900 rounded-2xl text-[10px] font-black uppercase">Cancel</button>
+                <button id="confirm-action-btn" class="flex-1 py-4 bg-white text-black rounded-2xl text-[10px] font-black uppercase">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <header class="p-8 sticky top-0 bg-black/60 backdrop-blur-2xl z-50">
+        <div class="max-w-2xl mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-black italic tracking-tighter">CF2KGAMER TAMBAYAN PH<span class="text-cyan-400">ADMIN</span></h1>
+                <p class="text-[8px] text-zinc-500 font-bold uppercase tracking-[4px]">System Hub</p>
+            </div>
+            <div class="text-right">
+                <p id="overall-total" class="text-2xl font-black text-white">₱0</p>
+                <p class="text-[9px] text-yellow-500 font-black uppercase tracking-widest">Total Net</p>
+            </div>
+        </div>
+    </header>
+
+    <main class="px-6 max-w-2xl mx-auto space-y-6">
+        <div class="grid grid-cols-2 gap-4">
+            <div class="premium-card p-6 rounded-[30px]">
+                <p class="text-[10px] text-zinc-500 font-bold uppercase mb-1">Direct (₱40)</p>
+                <h2 id="st-direct" class="text-2xl font-black">₱0</h2>
+            </div>
+            <div class="premium-card p-6 rounded-[30px]">
+                <p class="text-[10px] text-zinc-500 font-bold uppercase mb-1">Resale (₱50)</p>
+                <h2 id="st-reseller" class="text-2xl font-black text-blue-500">₱0</h2>
+            </div>
+        </div>
+
+        <div class="relative">
+            <i data-lucide="search" class="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600"></i>
+            <input type="text" id="searchInput" oninput="filterUsers()" placeholder="Search username..." class="w-full bg-zinc-900/30 border border-white/5 p-5 pl-14 rounded-3xl text-sm outline-none focus:border-yellow-500/20 transition-all text-white">
+        </div>
+
+        <div id="user-list" class="space-y-3"></div>
+    </main>
+
+    <div id="context-menu" onclick="closeMenu()">
+        <div class="menu-sheet space-y-8" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-start">
+                <div class="flex items-center gap-5">
+                    <div id="m-avatar" class="w-16 h-16 bg-yellow-500 rounded-2xl flex items-center justify-center text-2xl font-black text-black"></div>
+                    <div>
+                        <h2 id="m-user" class="text-xl font-black tracking-tight text-white">Username</h2>
+                        <div class="flex items-center gap-2 mt-1">
+                            <p id="m-status" class="text-[9px] text-zinc-500 font-bold uppercase tracking-widest border border-white/10 px-2 py-0.5 rounded-md"></p>
+                            <p id="m-device-count" class="text-[9px] text-blue-400 font-bold uppercase tracking-widest bg-blue-500/10 px-2 py-0.5 rounded-md"></p>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="closeMenu()" class="w-10 h-10 bg-zinc-900/80 rounded-full flex items-center justify-center text-zinc-500 hover:text-white border border-white/5">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="space-y-6">
+                <div class="space-y-3">
+                    <p class="text-[10px] font-black text-zinc-600 uppercase ml-1">1. Set Account Model</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button id="btn-direct" class="btn-logic bg-zinc-900/50 py-5 rounded-3xl text-[11px] font-black uppercase">Direct (₱40)</button>
+                        <button id="btn-resale" class="btn-logic bg-zinc-900/50 py-5 rounded-3xl text-[11px] font-black uppercase">Resale (₱50)</button>
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    <p class="text-[10px] font-black text-zinc-600 uppercase ml-1">2. Verification</p>
+                    <button id="btn-approve" class="btn-logic w-full bg-zinc-900 py-5 rounded-3xl text-[11px] font-black uppercase flex items-center justify-center gap-3">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i> Approve Account
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 pt-4 border-t border-white/5">
+                    <button id="btn-copy-login" class="col-span-2 py-4 bg-yellow-500/10 rounded-2xl text-[10px] font-black uppercase text-yellow-500 flex items-center justify-center gap-2 mb-1 active:bg-yellow-500 active:text-black transition-all">
+                        <i data-lucide="copy" class="w-3 h-3"></i> Copy Login Details
+                    </button>
+                    <button id="btn-reset" class="py-4 bg-zinc-900/50 rounded-2xl text-[10px] font-black uppercase text-zinc-400 flex items-center justify-center gap-2">
+                        <i data-lucide="refresh-cw" class="w-3 h-3"></i> Reset HWID
+                    </button>
+                    <button id="btn-ban" class="py-4 bg-zinc-900/50 rounded-2xl text-[10px] font-black uppercase text-orange-500">Ban User</button>
+                    <button id="btn-delete" class="col-span-2 py-4 bg-red-500/5 rounded-2xl text-[10px] font-black uppercase text-red-500 mt-2 active:bg-red-500/10">Delete Permanently</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const _sb = supabase.createClient(
+    'https://iscvxjqcqcpkoqtahnhx.supabase.co',
+    'sb_publishable_FV7kTh_GLin3m3GsVMBGjw_ZH183nnG'
+);
+        let allData = [];
+        let currentChoice = { id: null, isReseller: false };
+
+        // Helper para sa Custom Confirmation (Anti-Link)
+        function showConfirm(title, desc, action) {
+            document.getElementById('confirm-title').innerText = title;
+            document.getElementById('confirm-desc').innerText = desc;
+            document.getElementById('confirm-modal').classList.add('active');
+            document.getElementById('confirm-action-btn').onclick = async () => {
+                await action();
+                hideConfirm();
+            };
+        }
+        function hideConfirm() { document.getElementById('confirm-modal').classList.remove('active'); }
+
+        // Helper para sa Toast
+        function showToast(msg, bg = "#22c55e") {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.background = bg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        async function load() {
+            const { data, error } = await _sb.from('users').select('*').order('created_at', {ascending: false});
+            if(error) return;
+            allData = data;
+            render(allData);
+        }
+
+        function render(data) {
+            const active = data.filter(u => u.status === 'active' && !u.is_banned);
+            const rUsers = active.filter(u => u.is_reseller === true);
+            const dUsers = active.filter(u => u.is_reseller !== true);
+            document.getElementById('overall-total').innerText = `₱${(rUsers.length * 50) + (dUsers.length * 40)}`;
+            document.getElementById('st-direct').innerText = `₱${dUsers.length * 40}`;
+            document.getElementById('st-reseller').innerText = `₱${rUsers.length * 50}`;
+            
+            document.getElementById('user-list').innerHTML = data.map(u => {
+                const devCount = (u.device_ids && Array.isArray(u.device_ids)) ? u.device_ids.length : 0;
+                return `
+                <div class="premium-card p-5 rounded-[28px] flex justify-between items-center transition-all ${u.status === 'pending' ? 'pending-glow' : ''} ${u.is_reseller ? 'reseller-border' : ''}">
+                    <div class="flex items-center gap-5">
+                        <div class="w-12 h-12 rounded-2xl bg-zinc-900 flex items-center justify-center text-sm font-black ${u.is_reseller ? 'text-blue-500' : 'text-yellow-500'}">${u.username[0].toUpperCase()}</div>
+                        <div>
+                            <p class="font-bold text-[15px] ${u.is_banned ? 'text-zinc-700 line-through' : 'text-white'}">${u.username} ${u.status === 'pending' ? '🟡' : ''}</p>
+                            <div class="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest">
+                                <span class="text-zinc-500">${u.is_reseller ? 'Resale' : 'Direct'}</span>
+                                <span class="text-zinc-700">•</span>
+                                <span class="${devCount >= 3 ? 'text-red-500 font-black' : 'text-zinc-600'}">${devCount}/3 Devices</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="openMenu('${u.id}', '${u.username}', '${u.status}', ${u.is_banned}, ${u.is_reseller === true}, ${devCount})" class="w-10 h-10 flex items-center justify-center text-zinc-700 hover:text-white transition-colors"><i data-lucide="more-horizontal"></i></button>
+                </div>`}).join('');
+            lucide.createIcons();
+        }
+
+        function openMenu(id, name, status, banned, isReseller, devCount) {
+            currentChoice = { id: id, isReseller: isReseller };
+            const userData = allData.find(u => u.id === id);
+            document.getElementById('m-user').innerText = name;
+            document.getElementById('m-avatar').innerText = name[0].toUpperCase();
+            document.getElementById('m-status').innerText = status;
+            document.getElementById('m-device-count').innerText = `${devCount}/3 DEVICES`;
+
+            const btnD = document.getElementById('btn-direct');
+            const btnR = document.getElementById('btn-resale');
+            const btnA = document.getElementById('btn-approve');
+            const btnCopy = document.getElementById('btn-copy-login');
+
+            const refreshModalUI = (reselling, approved) => {
+                btnD.className = `btn-logic bg-zinc-900/50 py-5 rounded-3xl text-[11px] font-black uppercase ${!reselling ? 'selected-direct' : ''}`;
+                btnR.className = `btn-logic bg-zinc-900/50 py-5 rounded-3xl text-[11px] font-black uppercase ${reselling ? 'selected-resale' : ''}`;
+                btnA.className = `btn-logic w-full py-5 rounded-3xl text-[11px] font-black uppercase flex items-center justify-center gap-3 ${approved === 'active' ? 'btn-approved' : 'bg-zinc-900 text-white'}`;
+                btnA.innerHTML = approved === 'active' ? '<i data-lucide="shield-check" class="w-4 h-4"></i> Access Active' : '<i data-lucide="check-circle" class="w-4 h-4"></i> Approve Account';
+                lucide.createIcons();
+            };
+
+            refreshModalUI(isReseller, status);
+
+            btnCopy.onclick = () => {
+                const text = `User: ${userData.username}\nPass: ${userData.password}`;
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast("DETAILS COPIED!");
+                });
+            };
+
+            btnD.onclick = () => { currentChoice.isReseller = false; refreshModalUI(false, status); };
+            btnR.onclick = () => { currentChoice.isReseller = true; refreshModalUI(true, status); };
+            
+            btnA.onclick = async () => {
+                refreshModalUI(currentChoice.isReseller, 'active');
+                await _sb.from('users').update({ status: 'active', is_reseller: currentChoice.isReseller }).eq('id', id);
+                showToast("ACCOUNT APPROVED");
+                await load();
+            };
+
+            document.getElementById('btn-ban').onclick = async () => { 
+                await _sb.from('users').update({ is_banned: !banned }).eq('id', id); 
+                showToast(banned ? "USER UNBANNED" : "USER BANNED", "#f97316");
+                await load(); 
+                closeMenu(); 
+            };
+
+            document.getElementById('btn-reset').onclick = () => { 
+                showConfirm("Reset HWID?", "Are you sure you want to clear this user's 3-device limit?", async () => {
+                    await _sb.from('users').update({ device_ids: [] }).eq('id', id); 
+                    showToast("HWID RESET SUCCESS");
+                    await load(); 
+                    closeMenu(); 
+                });
+            };
+
+            document.getElementById('btn-delete').onclick = () => { 
+                showConfirm("Delete Account?", "Permanently remove this user? This cannot be undone.", async () => {
+                    await _sb.from('users').delete().eq('id', id); 
+                    showToast("USER DELETED", "#ef4444");
+                    await load(); 
+                    closeMenu(); 
+                });
+            };
+
+            document.getElementById('context-menu').classList.add('active');
+            lucide.createIcons();
+        }
+
+        function filterUsers() {
+            const v = document.getElementById('searchInput').value.toLowerCase();
+            render(allData.filter(u => u.username.toLowerCase().includes(v)));
+        }
+        function closeMenu() { document.getElementById('context-menu').classList.remove('active'); }
+        
+        load();
+        setInterval(load, 15000);
+    </script>
+</body>
+</html>
